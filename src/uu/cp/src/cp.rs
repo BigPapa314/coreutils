@@ -287,6 +287,13 @@ pub struct Options {
     pub progress_bar: bool,
 }
 
+/// Enum representing if a file has been skipped.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Skipped {
+    No,
+    Yes,
+}
+
 /// Enum representing various debug states of the offload and reflink actions.
 #[derive(Debug)]
 #[allow(dead_code)] // All of them are used on Linux
@@ -1974,7 +1981,7 @@ fn handle_copy_mode(
     source_in_command_line: bool,
     source_is_fifo: bool,
     #[cfg(unix)] source_is_stream: bool,
-) -> CopyResult<()> {
+) -> CopyResult<Skipped> {
     let source_is_symlink = source_metadata.is_symlink();
 
     match options.copy_mode {
@@ -2043,7 +2050,7 @@ fn handle_copy_mode(
                             println!("skipped {}", dest.quote());
                         }
 
-                        return Ok(());
+                        return Ok(Skipped::Yes);
                     }
                     update_control::UpdateMode::ReplaceNoneFail => {
                         return Err(Error::Error(format!("not replacing '{}'", dest.display())));
@@ -2054,7 +2061,7 @@ fn handle_copy_mode(
                         let src_time = source_metadata.modified()?;
                         let dest_time = dest_metadata.modified()?;
                         if src_time <= dest_time {
-                            return Ok(());
+                            return Ok(Skipped::Yes);
                         } else {
                             options.overwrite.verify(dest, options.debug)?;
 
@@ -2096,7 +2103,7 @@ fn handle_copy_mode(
         }
     };
 
-    Ok(())
+    Ok(Skipped::No)
 }
 
 /// Calculates the permissions for the destination file in a copy operation.
@@ -2322,7 +2329,7 @@ fn copy_file(
     #[cfg(not(unix))]
     let source_is_stream = false;
 
-    handle_copy_mode(
+    let skipped = handle_copy_mode(
         source,
         dest,
         options,
@@ -2335,7 +2342,7 @@ fn copy_file(
         source_is_stream,
     )?;
 
-    if options.verbose {
+    if options.verbose && skipped == Skipped::No {
         print_verbose_output(options.parents, progress_bar, source, dest);
     }
 
