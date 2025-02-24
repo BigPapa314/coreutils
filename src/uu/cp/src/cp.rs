@@ -289,9 +289,9 @@ pub struct Options {
 
 /// Enum representing if a file has been skipped.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Skipped {
-    No,
-    Yes,
+enum PerformedAction {
+    Copied,
+    Skipped,
 }
 
 /// Enum representing various debug states of the offload and reflink actions.
@@ -1981,7 +1981,7 @@ fn handle_copy_mode(
     source_in_command_line: bool,
     source_is_fifo: bool,
     #[cfg(unix)] source_is_stream: bool,
-) -> CopyResult<Skipped> {
+) -> CopyResult<PerformedAction> {
     let source_is_symlink = source_metadata.is_symlink();
 
     match options.copy_mode {
@@ -2050,7 +2050,7 @@ fn handle_copy_mode(
                             println!("skipped {}", dest.quote());
                         }
 
-                        return Ok(Skipped::Yes);
+                        return Ok(PerformedAction::Skipped);
                     }
                     update_control::UpdateMode::ReplaceNoneFail => {
                         return Err(Error::Error(format!("not replacing '{}'", dest.display())));
@@ -2061,7 +2061,7 @@ fn handle_copy_mode(
                         let src_time = source_metadata.modified()?;
                         let dest_time = dest_metadata.modified()?;
                         if src_time <= dest_time {
-                            return Ok(Skipped::Yes);
+                            return Ok(PerformedAction::Skipped);
                         } else {
                             options.overwrite.verify(dest, options.debug)?;
 
@@ -2103,7 +2103,7 @@ fn handle_copy_mode(
         }
     };
 
-    Ok(Skipped::No)
+    Ok(PerformedAction::Copied)
 }
 
 /// Calculates the permissions for the destination file in a copy operation.
@@ -2342,7 +2342,7 @@ fn copy_file(
         source_is_stream,
     )?;
 
-    if options.verbose && skipped == Skipped::No {
+    if options.verbose && skipped == PerformedAction::Copied {
         print_verbose_output(options.parents, progress_bar, source, dest);
     }
 
