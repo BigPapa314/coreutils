@@ -2329,7 +2329,7 @@ fn copy_file(
     #[cfg(not(unix))]
     let source_is_stream = false;
 
-    let skipped = handle_copy_mode(
+    let performed_action = handle_copy_mode(
         source,
         dest,
         options,
@@ -2342,7 +2342,7 @@ fn copy_file(
         source_is_stream,
     )?;
 
-    if options.verbose && skipped == PerformedAction::Copied {
+    if options.verbose && performed_action != PerformedAction::Skipped {
         print_verbose_output(options.parents, progress_bar, source, dest);
     }
 
